@@ -1,0 +1,103 @@
+-- Joining relevent tables
+Step 1: join salaries table with employees table with key emp_no
+        using JOIN.
+STEP 2: join dept_emp table to salaries+employees table with key emp_no
+        Using JOIN
+Step 3: join departments to salaries+employees+dept_emp with key dept_no
+        using JOIN 
+Step 4: select every record from the joined tables
+SELECT *
+FROM salaries AS s 
+JOIN employees AS e 
+ON s.emp_no = e.emp_no
+JOIN dept_emp AS de 
+ON e.emp_no = de.emp_no
+JOIN departments AS d 
+ON de.dept_no = d.dept_no;
+This query returns all have matching records in all the joined tables
+
+-- Filter Current Salaries by Removing Historic Records
+Step 1: select all records from salaries
+Step 2: filter to_date by 9999-01-01
+SELECT *
+FROM salaries
+WHERE to_date = '9999-01-01'
+This query returns all the current salaries(WHERE to_date = 9999-01-01) and excludes
+historic salaries
+
+-- Calculating average salaries per department
+Step 1: From the joined tables calculate average salaries with AVG function
+Step 2: group the average salaries by department with GROUP BY function
+(SELECT AVG(salary) AS average_salary,
+       dept_name
+FROM salaries AS s 
+JOIN employees AS e 
+ON s.emp_no = e.emp_no
+JOIN dept_emp AS de 
+ON e.emp_no = de.emp_no
+JOIN departments AS d 
+ON de.dept_no = d.dept_no
+GROUP BY dept_name) AS q1
+Returns average salaries per department
+
+-- Current department manager salaries
+Step 1: Join relevent tables
+Step 2: Filter out historic salaries and focus on current salaries(WHERE salaries to_date = 9999-01-01)
+Step 3: From the joined tables select salaries, names and department of the manager
+(SELECT 
+salary,
+d.dept_name,
+e.first_name,
+e.last_name 
+FROM employees e
+LEFT JOIN salaries s
+ON e.emp_no=s.emp_no
+INNER JOIN dept_manager dm
+ON e.emp_no=dm.emp_no
+LEFT JOIN departments d
+ON d.dept_no=dm.dept_no
+WHERE s.to_date='9999-01-01' AND dm.to_date = '9999-01-01') q2 
+Returns all the records from salaries that matches the title of manager and current salaries
+
+-- Create a view of average salaries per department and current salaries of manager in different department
+Step 1: join q1 and q2 with INNER JOIN 
+Step 2: Clean the results by removing quotation marks with REPLACE function
+Step 3: Round off the calculated average salary to two decimal places with ROUND function
+CREATE VIEW department_stats 
+AS (
+SELECT REPLACE(q1.dept_name,'"',"") as dept_name,
+       ROUND(q1.avg_salary,2) as avg_salary,
+       q2.first_name,
+       q2.last_name,
+       q2.salary 
+FROM
+(SELECT
+d.dept_name,
+AVG(salary) AS avg_salary
+FROM salaries s
+LEFT JOIN employees e
+ON s.emp_no=e.emp_no
+LEFT JOIN dept_manager dm
+ON dm.emp_no=e.emp_no
+LEFT JOIN departments d
+ON d.dept_no=dm.dept_no
+WHERE s.to_date='9999-01-01'
+GROUP BY d.dept_name) q1
+
+INNER JOIN 
+(SELECT 
+salary,
+d.dept_name,
+e.first_name,
+e.last_name 
+FROM employees e
+LEFT JOIN salaries s
+ON e.emp_no=s.emp_no
+INNER JOIN dept_manager dm
+ON e.emp_no=dm.emp_no
+LEFT JOIN departments d
+ON d.dept_no=dm.dept_no
+WHERE s.to_date='9999-01-01' AND dm.to_date = '9999-01-01') q2
+ON q1.dept_name=q2.dept_name);
+This query returns average salaries per department and salaries of manager in different departments   
+
